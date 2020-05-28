@@ -8,15 +8,20 @@ Images should resolve to the following:
   '3': '/3-hash.png'
 }
 */
-import images_png from './img/*.png';
-import images_jpg from './img/*.jpg';
+// import images_png from './img/*.png';
+// import images_jpg from './img/*.jpg';
 
-const pikachu_filename = 'pikachu_lg2'
-const gengar_filename = 'gengar'
-const ball_filename = 'ball'
-const pikachu_png = images_png[`${pikachu_filename}`]
-const gengar_png = images_png[`${gengar_filename}`]
-const ball_jpg = images_jpg[`${ball_filename}`]
+// const pikachu_filename = 'pikachu_lg2'
+// const gengar_filename = 'gengar'
+// const ball_filename = 'ball'
+
+// const pikachu_png = images_png[`${pikachu_filename}`]
+// const gengar_png = images_png[`${gengar_filename}`]
+// const ball_jpg = images_jpg[`${ball_filename}`]
+
+
+import sheet_png from './img/sheet_a.png';
+import sheet_json from './img/sheet_a.json';
 
 
 let Application = PIXI.Application,
@@ -27,9 +32,10 @@ let Application = PIXI.Application,
     TextureCache = PIXI.utils.TextureCache,
     Texture = PIXI.Texture,
     Sprite = PIXI.Sprite,
+    Spritesheet = PIXI.Spritesheet,
     Text = PIXI.Text,
     TextStyle = PIXI.TextStyle;
-
+// console.log('Loader', PIXI)
 let app = new Application({
     backgroundColor: 0x1099bb,
     antialiasing: true,
@@ -40,94 +46,132 @@ let app = new Application({
 document.body.querySelector('#vmfive-ad-unit-container-55667788 .wrap').appendChild(app.view);
 
 loader
-    .add([
-        pikachu_png,
-        ball_jpg
-    ])
+    .add(sheet_png)
     .load(setup);
 
-let state, Pikachus, Gengar, Ball, message, gameScene, gameOverScene;
+let gameDuringTime = 20;
+let state,
+    Flowers, Leaf, Bottle, id,
+    message, countdownMessage, endMessage,
+    gameScene, gameOverScene,
+    gameStartTime;
 
 function setup() {
 
     gameScene = new Container();
     app.stage.addChild(gameScene);
 
-    let Pikachu_img = Texture.from(`${pikachu_png}`);
-    let gengar_img = Texture.from(`${gengar_png}`);
-    let Ball_img = Texture.from(`${ball_jpg}`);
 
-    let numberOfPikachu = 3,
-        spacing = 140,
-        xOffset = 80,
-        speed = 2,
-        direction = 1;
+    const texture = loader.resources[sheet_png].texture.baseTexture;
+    const sheet = new Spritesheet(texture, sheet_json);
+    sheet.parse((texture_sheet) => {
+        id = texture_sheet;
+        let numberOfFlower = 3,
+            spacing = 140,
+            xOffset = 80,
+            speed = 1,
+            direction = 1;
 
-    Pikachus = [];
-    for (let i = 0; i < numberOfPikachu; i++) {
+        Flowers = [];
+        for (let i = 0; i < numberOfFlower; i++) {
 
-        let pikachu = new Sprite(Pikachu_img);
-        pikachu.anchor.set(0.5);
-        pikachu.scale.set(0.3, 0.3);
+            // let pikachu = new Sprite(Pikachu_img);
+            let flower = new Sprite(id[`flower.png`]);
+            flower.anchor.set(0.5);
+            flower.scale.set(0.5, 0.5);
 
-        let x = spacing * i + xOffset;
-        //  todo 150 是固定值看要不要改
-        let y = randomInt(-150, -150 + pikachu.height);
-        pikachu.x = x;
-        pikachu.y = y;
+            let x = spacing * i + xOffset;
+            //  todo 150 是固定值看要不要改
+            let y = randomInt(-150, -150 + flower.height);
+            flower.x = x;
+            flower.y = y;
 
-        pikachu.velocityY = speed * direction;
-        // console.log(pikachu.x , pikachu.y )
-        // console.log(pikachu.width , pikachu.height )
+            flower.velocityY = speed * direction;
 
-        Pikachus.push(pikachu)
-        gameScene.addChild(pikachu)
-    }
+            Flowers.push(flower)
+            gameScene.addChild(flower)
+        }
 
-    Gengar = new Sprite(gengar_img);
-    Gengar.anchor.set(0.5);
-    Gengar.scale.set(0.3, 0.3);
+        // Gengar = new Sprite(gengar_img);
+        Leaf = new Sprite(id[`leaf.png`]);
+        Leaf.anchor.set(0.5);
+        Leaf.scale.set(0.5, 0.5);
 
-    let x = spacing * 4 + xOffset;
+        let x = spacing * 4 + xOffset;
 
-    let y = randomInt(-150, -150 + Gengar.height);
-    Gengar.x = x;
-    Gengar.y = y;
+        let y = randomInt(-150, -150 + Leaf.height);
+        Leaf.x = x;
+        Leaf.y = y;
 
-    Gengar.velocityY = speed * direction;
+        Leaf.velocityY = speed * direction;
 
-    gameScene.addChild(Gengar)
-    // ============================================
+        gameScene.addChild(Leaf)
+        // ============================================
 
-    Ball = new Sprite(Ball_img);
-    Ball.interactive = true;
-    Ball.buttonMode = true;
-    Ball.anchor.set(0.5);
-    Ball.scale.set(0.2, 0.2);
-    Ball.x = 250;
-    Ball.y = 350;
-    // console.log(Ball.width , Ball.height )
-    Ball
-        .on('pointerdown', onDragStart)
-        .on('pointerup', onDragEnd)
-        .on('pointerupoutside', onDragEnd)
-        .on('pointermove', onDragMove);
-    gameScene.addChild(Ball);
+        // Bottle = new Sprite(Ball_img);
+        Bottle = new Sprite(id[`bottle_0.png`]);
+        Bottle.interactive = true;
+        Bottle.buttonMode = true;
+        Bottle.anchor.set(0.5);
+        Bottle.scale.set(0.5, 0.5);
+        Bottle.x = 250;
+        Bottle.y = 350;
+        // console.log(Ball.width , Ball.height )
+        Bottle
+            .on('pointerdown', onDragStart)
+            .on('pointerup', onDragEnd)
+            .on('pointerupoutside', onDragEnd)
+            .on('pointermove', onDragMove);
+        gameScene.addChild(Bottle);
 
-    let style = new TextStyle({
-        fontFamily: "Arial",
-        fontSize: 36,
-        fill: "white",
+        let style_message = new TextStyle({
+            fontFamily: "Arial",
+            fontSize: 24,
+            fill: "white",
+        });
+        message = new Text("Hello Pixi!", style_message);
+        message.position.set(20, 20);
+        gameScene.addChild(message);
+
+        let style_countdown = new TextStyle({
+            fontFamily: "Arial",
+            fontSize: 36,
+            fill: "white",
+        });
+        countdownMessage = new Text(`${gameDuringTime}s`, style_countdown);
+        countdownMessage.position.set(400, 20);
+        gameScene.addChild(countdownMessage);
+
+        // 設定 20s 後結束
+        console.log('gameStartTime.date', Date.now())
+        gameStartTime = Date.now();
+
+
+        /*
+        /  gameOverScene
+        */
+        gameOverScene = new Container();
+        app.stage.addChild(gameOverScene);
+        gameOverScene.visible = false;
+
+        let style_end = new TextStyle({
+            fontFamily: "Arial",
+            fontSize: 64,
+            fill: "white"
+        });
+        endMessage = new Text("The End!", style_end);
+        endMessage.x = 120;
+        endMessage.y = app.stage.height / 2 - 32;
+        gameOverScene.addChild(endMessage);
+
+
+        /*
+        / 狀態控制
+        */
+        state = play;
+
+        app.ticker.add(delta => gameLoop(delta));
     });
-    message = new Text("Hello Pixi!", style);
-    message.position.set(50, 50);
-    gameScene.addChild(message);
-
-    //，它实际上最好的方式，所以听好啦！如果你想知道精灵到canvas左上角的距离，但是不知道或者不关心精灵的父亲是谁，用getGlobalPosition方法。这里展示如何用它来找到老虎的全局位置：
-
-    state = play;
-
-    app.ticker.add(delta => gameLoop(delta));
 }
 
 function gameLoop(delta) {
@@ -136,55 +180,68 @@ function gameLoop(delta) {
 }
 
 function play(delta) {
-    // console.log('Pikachus --', Pikachus)
 
-    // contain(Ball, {x: 28, y: 10, width: 488, height: 480});
-
-    let cathchPikachu = false,
-        cathchGengar = false;
+    let cathchFlower = false,
+        cathchLeaf = false;
     // 碰撞檢測
-    Pikachus.forEach(function (Pikachu) {
-        //Move the Pikachu
-        Pikachu.y += Pikachu.velocityY;
+    Flowers.forEach(function (Flower) {
+        //Move the Flower
+        Flower.y += Flower.velocityY;
 
         // x, y 是指外框的位置
-        let pikachuHitsWall = contain(Pikachu, { x: 0, y: -150, width: 500, height: 700 });
+        let flowerHitsWall = contain(Flower, { x: 0, y: -150, width: 500, height: 700 });
 
-        if (pikachuHitsWall === "top" || pikachuHitsWall === "bottom") {
-            Pikachu.y = -150;
+        if (flowerHitsWall === "top" || flowerHitsWall === "bottom") {
+            Flower.y = -150;
         }
 
         //Test for a collision. If any of the enemies are touching
         //the explorer, set `explorerHit` to `true`
-        if (hitTestRectangle(Ball, Pikachu)) {
-            cathchPikachu = true;
+        if (hitTestRectangle(Bottle, Flower)) {
+            cathchFlower = true;
         }
     });
 
-    // for Gengar
-    Gengar.y += Gengar.velocityY;
+    // for Leaf
+    Leaf.y += Leaf.velocityY;
 
     // x, y 是指外框的位置
-    let GengarHitsWall = contain(Gengar, { x: 0, y: -150, width: 500, height: 700 });
+    let LeafHitsWall = contain(Leaf, { x: 0, y: -150, width: 500, height: 700 });
 
-    if (GengarHitsWall === "top" || GengarHitsWall === "bottom") {
-        Gengar.y = -150;
+    if (LeafHitsWall === "top" || LeafHitsWall === "bottom") {
+        Leaf.y = -150;
     }
 
     //Test for a collision. If any of the enemies are touching
     //the explorer, set `explorerHit` to `true`
-    if (hitTestRectangle(Ball, Gengar)) {
-        cathchGengar = true;
+    if (hitTestRectangle(Bottle, Leaf)) {
+        cathchLeaf = true;
     }
 
 
-    if (cathchPikachu) {
+    if (cathchLeaf) {
+        state = end;
+        message.text = "End game";
+    }
+    else if (cathchFlower) {
         message.text = "Hit";
-    } else if (cathchGengar) {
-        message.text = "Youe dead";
+        Bottle.setTexture(id[`bottle_3.png`])
     } else {
         message.text = "No collision...";
     }
+
+    let currentTime = Date.now();
+    let leftTime = gameDuringTime - Math.floor((currentTime - gameStartTime) / 1000);
+    countdownMessage.text = `${leftTime}s`;
+    if (leftTime <= 0) {
+        state = end;
+        message.text = "End game";
+    }
+}
+
+function end() {
+    gameScene.visible = false;
+    gameOverScene.visible = true;
 }
 
 function onDragStart(event) {
@@ -206,7 +263,6 @@ function onDragEnd() {
 function onDragMove() {
     if (this.dragging) {
         const newPosition = this.data.getLocalPosition(this.parent);
-        console.log('newPosition ====', newPosition.x, newPosition.y)
         this.x = newPosition.x;
         this.y = newPosition.y;
     }
