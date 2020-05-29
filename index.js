@@ -52,43 +52,58 @@ loader
 let gameDuringTime = 20;
 let state,
     Flowers, Leaf, Bottle, id,
-    message, countdownMessage, endMessage,
+    scoreＭessage, countdownMessage, endMessage,
+    dropPostion = [],
+    flowerCount, score = 0,
     gameScene, gameOverScene,
     gameStartTime;
+
+let positionTack = 4,
+    numberOfFlower = 7,
+    numberOfLeaf = 3, // 目前只有一個，若要多增則要讓 leaf 也 for
+    spacing = app.screen.width / 5, // screen 寬度的 1/5
+    xOffset = 30, // 每個花之間的間距，等於一半花寬多一點點
+    screenOuterOffset = 100, // 遊戲螢幕上下的 offset，讓花葉可以超出去
+    speed = 3,
+    direction = 1;
 
 function setup() {
 
     gameScene = new Container();
     app.stage.addChild(gameScene);
+    
+    // 先把掉落軌道固定好
+    for (let i = 0; i < positionTack; i++) {
+        let dropX = (app.screen.width / 4) * i + xOffset;
+        dropPostion.push(dropX)
+    }
+    console.log(app.screen.width, dropPostion)
 
 
     const texture = loader.resources[sheet_png].texture.baseTexture;
     const sheet = new Spritesheet(texture, sheet_json);
     sheet.parse((texture_sheet) => {
         id = texture_sheet;
-        let numberOfFlower = 3,
-            spacing = 140,
-            xOffset = 80,
-            speed = 1,
-            direction = 1;
 
         Flowers = [];
         for (let i = 0; i < numberOfFlower; i++) {
 
-            // let pikachu = new Sprite(Pikachu_img);
             let flower = new Sprite(id[`flower.png`]);
             flower.anchor.set(0.5);
             flower.scale.set(0.5, 0.5);
 
-            let x = spacing * i + xOffset;
-            //  todo 150 是固定值看要不要改
-            let y = randomInt(-150, -150 + flower.height);
-            flower.x = x;
-            flower.y = y;
+            // let x = spacing * i + xOffset;
+            let flower_x = dropPostion[randomInt(0, positionTack - 1)];
+            // 花的起始 Y
+            let flower_y = randomInt(-app.screen.height, -flower.height); // 距離頂關 一倍遊戲螢幕高 到 花的高之間
+            flower.x = flower_x;
+            flower.y = flower_y;
 
             flower.velocityY = speed * direction;
+            flower.beenHit = false;
 
             Flowers.push(flower)
+            // console.log('flower', flower.x, flower.y, app.screen.height, app.screen.width, flower.height)
             gameScene.addChild(flower)
         }
 
@@ -97,13 +112,15 @@ function setup() {
         Leaf.anchor.set(0.5);
         Leaf.scale.set(0.5, 0.5);
 
-        let x = spacing * 4 + xOffset;
-
-        let y = randomInt(-150, -150 + Leaf.height);
-        Leaf.x = x;
-        Leaf.y = y;
+        // let x = spacing * 3 + xOffset; // screen 寬度的 1/5，目前暫定為第四個
+        let leaf_x = dropPostion[randomInt(0, positionTack - 1)];
+        // 葉子的起始點，看要不要改
+        let leaf_y = randomInt(-screenOuterOffset, -Leaf.height);
+        Leaf.x = leaf_x;
+        Leaf.y = leaf_y;
 
         Leaf.velocityY = speed * direction;
+        Leaf.beenHit = false;
 
         gameScene.addChild(Leaf)
         // ============================================
@@ -114,9 +131,9 @@ function setup() {
         Bottle.buttonMode = true;
         Bottle.anchor.set(0.5);
         Bottle.scale.set(0.5, 0.5);
-        Bottle.x = 250;
-        Bottle.y = 350;
-        // console.log(Ball.width , Ball.height )
+        Bottle.x = app.screen.width / 2; // 置中
+        Bottle.y = app.screen.height - (Bottle.height / 2);
+
         Bottle
             .on('pointerdown', onDragStart)
             .on('pointerup', onDragEnd)
@@ -126,12 +143,12 @@ function setup() {
 
         let style_message = new TextStyle({
             fontFamily: "Arial",
-            fontSize: 24,
+            fontSize: 12,
             fill: "white",
         });
-        message = new Text("Hello Pixi!", style_message);
-        message.position.set(20, 20);
-        gameScene.addChild(message);
+        scoreＭessage = new Text(`Score: 0`, style_message);
+        scoreＭessage.position.set(20, 20);
+        gameScene.addChild(scoreＭessage);
 
         let style_countdown = new TextStyle({
             fontFamily: "Arial",
@@ -139,11 +156,10 @@ function setup() {
             fill: "white",
         });
         countdownMessage = new Text(`${gameDuringTime}s`, style_countdown);
-        countdownMessage.position.set(400, 20);
+        countdownMessage.position.set(app.screen.width / 2 - 24, 20);
         gameScene.addChild(countdownMessage);
 
         // 設定 20s 後結束
-        console.log('gameStartTime.date', Date.now())
         gameStartTime = Date.now();
 
 
@@ -156,18 +172,22 @@ function setup() {
 
         let style_end = new TextStyle({
             fontFamily: "Arial",
-            fontSize: 64,
+            fontSize: 40,
             fill: "white"
         });
         endMessage = new Text("The End!", style_end);
-        endMessage.x = 120;
-        endMessage.y = app.stage.height / 2 - 32;
+        endMessage.x = app.screen.width / 2 - 80;
+        endMessage.y = app.screen.height / 2 - 32;
         gameOverScene.addChild(endMessage);
 
 
         /*
         / 狀態控制
         */
+
+        // 初始 被抓花數
+        flowerCount = 0;
+
         state = play;
 
         app.ticker.add(delta => gameLoop(delta));
@@ -183,59 +203,93 @@ function play(delta) {
 
     let cathchFlower = false,
         cathchLeaf = false;
+
     // 碰撞檢測
     Flowers.forEach(function (Flower) {
         //Move the Flower
         Flower.y += Flower.velocityY;
 
-        // x, y 是指外框的位置
-        let flowerHitsWall = contain(Flower, { x: 0, y: -150, width: 500, height: 700 });
+        // x, y 是指外框的位置，這個可能要改 TODO
+        let flowerHitsWall = contain(Flower, { x: 0, y: -app.screen.height, width: app.screen.width, height: app.screen.height });
 
-        if (flowerHitsWall === "top" || flowerHitsWall === "bottom") {
-            Flower.y = -150;
+        // 如果碰到底或頂的時候，要重新刷新位置
+        if (flowerHitsWall === "bottom") {
+
+            Flower.x = dropPostion[randomInt(0, positionTack - 1)];
+            Flower.y = randomInt(-screenOuterOffset, -Flower.height);
+
+            // 如果這朵花又從上面下來了，重置它的碰撞狀態
+            Flower.beenHit = false;
+            Flower.alpha = 1;
         }
 
         //Test for a collision. If any of the enemies are touching
         //the explorer, set `explorerHit` to `true`
-        if (hitTestRectangle(Bottle, Flower)) {
-            cathchFlower = true;
+        if (!Flower.beenHit) {
+            if (hitTestRectangle(Bottle, Flower)) {
+                // 這朵花已經碰撞過了
+                Flower.beenHit = true;
+                Flower.alpha = 0;
+                // 抓到花了
+                cathchFlower = true;
+            }
         }
     });
 
     // for Leaf
     Leaf.y += Leaf.velocityY;
 
-    // x, y 是指外框的位置
-    let LeafHitsWall = contain(Leaf, { x: 0, y: -150, width: 500, height: 700 });
+    // x, y 是指外框的位置，這個可能要改 TODO
+    let LeafHitsWall = contain(Leaf, { x: 0, y: -app.screen.height, width: app.screen.width, height: app.screen.height });
+    console.log(' width: app.screen.width', app.screen.width, app.screen.height)
 
-    if (LeafHitsWall === "top" || LeafHitsWall === "bottom") {
-        Leaf.y = -150;
+    if (LeafHitsWall === "bottom") {
+        Leaf.x = dropPostion[randomInt(0, positionTack - 1)];
+        Leaf.y = randomInt(-screenOuterOffset, -Leaf.height);
+
+        // 如果這葉子又從上面下來了，重置它的碰撞狀態
+        Leaf.beenHit = false;
+        Leaf.alpha = 1;
     }
 
-    //Test for a collision. If any of the enemies are touching
-    //the explorer, set `explorerHit` to `true`
-    if (hitTestRectangle(Bottle, Leaf)) {
-        cathchLeaf = true;
+    if (!Leaf.beenHit) {
+        if (hitTestRectangle(Bottle, Leaf)) {
+            // 這葉子已經碰撞過了
+            Leaf.beenHit = true;
+            Leaf.alpha = 0;
+            // 抓到葉子
+            cathchLeaf = true;
+        }
     }
 
-
-    if (cathchLeaf) {
-        state = end;
-        message.text = "End game";
-    }
-    else if (cathchFlower) {
-        message.text = "Hit";
-        Bottle.setTexture(id[`bottle_3.png`])
-    } else {
-        message.text = "No collision...";
-    }
-
+    // 時間到就結束
     let currentTime = Date.now();
     let leftTime = gameDuringTime - Math.floor((currentTime - gameStartTime) / 1000);
     countdownMessage.text = `${leftTime}s`;
     if (leftTime <= 0) {
         state = end;
-        message.text = "End game";
+        endMessage.text = "Time out";
+    }
+
+    // 碰撞物體計分
+    if (cathchLeaf) {
+        // state = end;
+        // endMessage.text = "Lose game";
+        score = score -= 500;
+        scoreＭessage.text = `Scroe: ${score}`;
+    }
+    else if (cathchFlower) {
+        score = score += 1000;
+        scoreＭessage.text = `Scroe: ${score}`;
+        flowerCount = flowerCount >= 5 ? 5 : flowerCount + 1;
+        Bottle.setTexture(id[`bottle_${flowerCount}.png`])
+    } else {
+    }
+
+    // 抓到超過 n 朵花就結束
+    if (flowerCount >= 100) {
+        state = end;
+        endMessage.text = "Time out";
     }
 }
 
@@ -269,32 +323,32 @@ function onDragMove() {
 }
 
 /* Helper functions */
-
 function contain(sprite, container) {
 
     let collision = undefined;
 
     //Left
     if (sprite.x < container.x) {
-        sprite.x = container.x;
+        // sprite.x = container.x;
         collision = "left";
     }
 
     //Top
     if (sprite.y < container.y) {
-        sprite.y = container.y;
+        // sprite.y = container.y;
         collision = "top";
     }
 
     //Right
     if (sprite.x + sprite.width > container.width) {
-        sprite.x = container.width - sprite.width;
+        // sprite.x = container.width - sprite.width;
         collision = "right";
     }
 
     //Bottom
-    if (sprite.y + sprite.height > container.height) {
-        sprite.y = container.height - sprite.height;
+    // 物件低於底部一半的物件高度才讓他回到最上面
+    if (sprite.y - (sprite.height/2) > container.height) {
+        // sprite.y = container.height - sprite.height;
         collision = "bottom";
     }
 
