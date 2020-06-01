@@ -47,15 +47,16 @@ document.body.querySelector('#vmfive-ad-unit-container-55667788 .wrap').appendCh
 
 loader
     .add(sheet_png)
-    .load(setup);
+    .load(start);
 
 let gameDuringTime = 20;
 let state,
     Flowers, Leaf, Bottle, id,
-    scoreＭessage, countdownMessage, endMessage,
+    startMessage, scoreＭessage, countdownMessage, endMessage,
+    startGraphic, background,
     dropPostion = [],
     flowerCount, score = 0,
-    gameScene, gameOverScene,
+    gameStartScene, gameScene, gameOverScene,
     gameStartTime;
 
 let positionTack = 4,
@@ -67,11 +68,53 @@ let positionTack = 4,
     speed = 3,
     direction = 1;
 
-function setup() {
+function start() {
+    /*
+    /  gameStartScene
+    */
+    gameStartScene = new Container();
+    app.stage.addChild(gameStartScene);
 
+    let style_end = new TextStyle({
+        fontFamily: "Arial",
+        fontSize: 30,
+        fill: "white"
+    });
+    startMessage = new Text("Click To Start!", style_end);
+    startMessage.x = app.screen.width / 2 - 80;
+    startMessage.y = app.screen.height / 2 - 32;
+    gameStartScene.addChild(startMessage);
+
+    startGraphic = new Graphics();
+    startGraphic.beginFill(0x66CCFF);
+    startGraphic.drawRect(0, 0, 64, 64);
+    startGraphic.endFill();
+    startGraphic.x = app.screen.width / 2 - 80;
+    startGraphic.y = app.screen.height / 2;
+    startGraphic.interactive = true;
+    gameStartScene.addChild(startGraphic);
+
+    startGraphic.on('pointerdown', onClick)
+    function onClick() {
+        /*
+        / 狀態控制
+        */
+
+        // 初始 被抓花數
+        flowerCount = 0;
+
+        state = play;
+
+        app.ticker.add(delta => gameLoop(delta));
+    }
+
+    /*
+    /  gameScene
+    */
     gameScene = new Container();
     app.stage.addChild(gameScene);
-    
+    gameScene.visible = false;
+
     // 先把掉落軌道固定好
     for (let i = 0; i < positionTack; i++) {
         let dropX = (app.screen.width / 4) * i + xOffset;
@@ -82,9 +125,22 @@ function setup() {
 
     const texture = loader.resources[sheet_png].texture.baseTexture;
     const sheet = new Spritesheet(texture, sheet_json);
+    // 雪碧圖加載完才 load 後續的
     sheet.parse((texture_sheet) => {
         id = texture_sheet;
+        /*
+        /  背景位置
+        */
+        background = new Sprite(id[`bg.jpg`]);
+        background.width = app.screen.width;
+        //    background.height = 300;
+        background.x = 0;
+        background.y = 0;
+        gameScene.addChild(background);
 
+        /*
+        /  花的位置
+        */
         Flowers = [];
         for (let i = 0; i < numberOfFlower; i++) {
 
@@ -107,7 +163,9 @@ function setup() {
             gameScene.addChild(flower)
         }
 
-        // Gengar = new Sprite(gengar_img);
+        /*
+        /  葉子的位置
+        */
         Leaf = new Sprite(id[`leaf.png`]);
         Leaf.anchor.set(0.5);
         Leaf.scale.set(0.5, 0.5);
@@ -123,9 +181,10 @@ function setup() {
         Leaf.beenHit = false;
 
         gameScene.addChild(Leaf)
-        // ============================================
 
-        // Bottle = new Sprite(Ball_img);
+        /*
+        /  瓶子的位置
+        */
         Bottle = new Sprite(id[`bottle_0.png`]);
         Bottle.interactive = true;
         Bottle.buttonMode = true;
@@ -141,6 +200,9 @@ function setup() {
             .on('pointermove', onDragMove);
         gameScene.addChild(Bottle);
 
+        /*
+        /  訊息的位置
+        */
         let style_message = new TextStyle({
             fontFamily: "Arial",
             fontSize: 12,
@@ -158,9 +220,6 @@ function setup() {
         countdownMessage = new Text(`${gameDuringTime}s`, style_countdown);
         countdownMessage.position.set(app.screen.width / 2 - 24, 20);
         gameScene.addChild(countdownMessage);
-
-        // 設定 20s 後結束
-        gameStartTime = Date.now();
 
 
         /*
@@ -180,17 +239,6 @@ function setup() {
         endMessage.y = app.screen.height / 2 - 32;
         gameOverScene.addChild(endMessage);
 
-
-        /*
-        / 狀態控制
-        */
-
-        // 初始 被抓花數
-        flowerCount = 0;
-
-        state = play;
-
-        app.ticker.add(delta => gameLoop(delta));
     });
 }
 
@@ -200,6 +248,12 @@ function gameLoop(delta) {
 }
 
 function play(delta) {
+    gameStartScene.visible = false;
+    gameScene.visible = true;
+    gameOverScene.visible = false;
+
+    // 設定 20s 後結束
+    gameStartTime = Date.now();
 
     let cathchFlower = false,
         cathchLeaf = false;
@@ -294,6 +348,7 @@ function play(delta) {
 }
 
 function end() {
+    gameStartScene.visible = false;
     gameScene.visible = false;
     gameOverScene.visible = true;
 }
@@ -347,7 +402,7 @@ function contain(sprite, container) {
 
     //Bottom
     // 物件低於底部一半的物件高度才讓他回到最上面
-    if (sprite.y - (sprite.height/2) > container.height) {
+    if (sprite.y - (sprite.height / 2) > container.height) {
         // sprite.y = container.height - sprite.height;
         collision = "bottom";
     }
